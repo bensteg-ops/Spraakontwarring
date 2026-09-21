@@ -141,7 +141,6 @@ async function selectRecording(id) {
   renderList();
   emptyState.classList.add("hidden");
   detailEl.classList.remove("hidden");
-  document.getElementById("app").classList.add("mobile-detail");
   await loadDetail(id);
   clearInterval(state.pollTimer);
   state.pollTimer = setInterval(async () => {
@@ -215,12 +214,7 @@ deleteBtn.addEventListener("click", async () => {
   state.currentId = null;
   detailEl.classList.add("hidden");
   emptyState.classList.remove("hidden");
-  document.getElementById("app").classList.remove("mobile-detail");
   refreshList();
-});
-
-document.getElementById("backToListBtn").addEventListener("click", () => {
-  document.getElementById("app").classList.remove("mobile-detail");
 });
 
 regenerateBtn.addEventListener("click", async () => {
@@ -722,7 +716,6 @@ function onAuthenticated(user) {
 
 function showAuthScreen() {
   appEl.classList.add("hidden");
-  appEl.classList.remove("mobile-detail");
   authScreen.classList.remove("hidden");
   loginForm.reset();
   registerForm.reset();
