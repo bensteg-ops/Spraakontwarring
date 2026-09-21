@@ -60,10 +60,15 @@
 
       <div class="new-meta">
         <input id="titleInput" type="text" placeholder="Titel van vergadering (optioneel)" />
-        <select id="langSelect">
-          <option value="nl">Nederlands</option>
-          <option value="en">Engels</option>
-          <option value="auto">Automatisch detecteren</option>
+        <select id="langSelect" title="Taal van het gesprek (voor transcriptie)">
+          <option value="nl">Nederlands (gesprek)</option>
+          <option value="en">Engels (gesprek)</option>
+          <option value="auto">Taal automatisch detecteren</option>
+        </select>
+        <select id="minutesLangSelect" title="Taal van de notulen">
+          <option value="auto">Notulen: zelfde taal als gesprek</option>
+          <option value="nl">Notulen: altijd Nederlands</option>
+          <option value="en">Notulen: altijd Engels</option>
         </select>
       </div>
     </div>
@@ -118,6 +123,11 @@
 
       <section id="tab-minutes" class="tab-panel">
         <div class="panel-toolbar">
+          <select id="minutesLangRegenSelect" title="Taal van de notulen bij opnieuw genereren">
+            <option value="auto">Notulen: zelfde taal als gesprek</option>
+            <option value="nl">Notulen: altijd Nederlands</option>
+            <option value="en">Notulen: altijd Engels</option>
+          </select>
           <button id="regenerateBtn" class="secondary-btn">🔄 Opnieuw genereren</button>
           <button id="copyMinutesBtn" class="secondary-btn">📋 Kopiëren</button>
           <button id="exportDocxBtn" class="secondary-btn">⬇️ Word</button>
