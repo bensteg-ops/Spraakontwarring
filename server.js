@@ -165,6 +165,9 @@ app.post("/api/recordings", upload.single("audio"), async (req, res, next) => {
 
     const title = (req.body.title && String(req.body.title).trim()) || defaultTitle();
     const language = req.body.language === "auto" ? null : req.body.language || "nl";
+    const minutesLanguage = ["nl", "en", "auto"].includes(req.body.minutesLanguage)
+      ? req.body.minutesLanguage
+      : "auto";
 
     const record = {
       id,
@@ -175,6 +178,7 @@ app.post("/api/recordings", upload.single("audio"), async (req, res, next) => {
       audioFile: fileName,
       mimeType: req.file.mimetype,
       language,
+      minutesLanguage,
       transcript: null,
       speakerNames: {},
       minutes: null,
@@ -201,6 +205,9 @@ app.patch("/api/recordings/:id", async (req, res, next) => {
     if (req.body.speakerNames && typeof req.body.speakerNames === "object") {
       patch.speakerNames = req.body.speakerNames;
     }
+    if (["nl", "en", "auto"].includes(req.body.minutesLanguage)) {
+      patch.minutesLanguage = req.body.minutesLanguage;
+    }
     const updated = await updateRecording(req.params.id, req.userId, patch);
     if (!updated) return res.status(404).json({ error: "Opname niet gevonden" });
     res.json(updated);
@@ -217,7 +224,11 @@ app.post("/api/recordings/:id/generate", async (req, res, next) => {
     if (!recording.transcript) {
       return res.status(400).json({ error: "Nog geen transcript beschikbaar voor deze opname." });
     }
-    await updateRecording(recording.id, req.userId, { status: "generating", error: null });
+    const patch = { status: "generating", error: null };
+    if (["nl", "en", "auto"].includes(req.body.minutesLanguage)) {
+      patch.minutesLanguage = req.body.minutesLanguage;
+    }
+    await updateRecording(recording.id, req.userId, patch);
     res.json({ ok: true, status: "generating" });
 
     runGeneration(recording.id).catch((err) => {
@@ -429,9 +440,10 @@ async function runGeneration(id) {
 
   await updateRecordingInternal(id, { status: "generating" });
 
+  const minutesLanguage = recording.minutesLanguage || "auto";
   const [minutes, mindmap] = await Promise.all([
-    generateMinutes(recording.transcript.utterances, recording.speakerNames, recording.title),
-    generateMindmap(recording.transcript.utterances, recording.speakerNames, recording.title),
+    generateMinutes(recording.transcript.utterances, recording.speakerNames, recording.title, minutesLanguage),
+    generateMindmap(recording.transcript.utterances, recording.speakerNames, recording.title, minutesLanguage),
   ]);
 
   await updateRecordingInternal(id, { status: "done", minutes, mindmap, error: null });
@@ -527,7 +539,7 @@ function guessExtension(mimetype, originalName) {
 
 function defaultTitle() {
   const now = new Date();
-  const d = now.toLocaleDateString("nl-NL");
-  const t = now.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+  const d = now.toLocaleDateString("nl-NL", { timeZone: "Europe/Amsterdam" });
+  const t = now.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Amsterdam" });
   return `Vergadering ${d} ${t}`;
 }
