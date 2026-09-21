@@ -248,3 +248,287 @@ copyMinutesBtn.addEventListener("click", async () => {
   copyMinutesBtn.textContent = "✅ Gekopieerd";
   setTimeout(() => (copyMinutesBtn.textContent = "📋 Kopiëren"), 1500);
 });
+
+document.getElementById("exportDocxBtn").addEventListener("click", () => {
+  if (!currentRecord || !currentRecord.minutes) return;
+  window.location.href = `/api/recordings/${currentRecord.id}/export/docx`;
+});
+
+document.getElementById("exportPdfBtn").addEventListener("click", () => {
+  if (!currentRecord || !currentRecord.minutes) return;
+  window.location.href = `/api/recordings/${currentRecord.id}/export/pdf`;
+});
+
+document.getElementById("downloadMindmapBtn").addEventListener("click", () => {
+  const svg = document.querySelector("#mindmapView svg");
+  if (!svg) return;
+  const source = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([source], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${(currentRecord?.title || "mindmap").replace(/[^\w-]+/g, "_")}.svg`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+// ---------- Tabs ----------
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+  });
+});
+
+// ---------- Sprekers hernoemen ----------
+function renderSpeakerEditor(record) {
+  const el = document.getElementById("speakerEditor");
+  el.innerHTML = "";
+  if (!record.transcript) return;
+  const speakers = Object.keys(record.speakerNames || {});
+  for (const key of speakers) {
+    const chip = document.createElement("div");
+    chip.className = "speaker-chip";
+    chip.innerHTML = `<span>🗣️</span>`;
+    const input = document.createElement("input");
+    input.value = record.speakerNames[key];
+    input.dataset.speakerKey = key;
+    let debounceTimer;
+    input.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => saveSpeakerName(record.id, key, input.value), 600);
+    });
+    chip.appendChild(input);
+    el.appendChild(chip);
+  }
+}
+
+async function saveSpeakerName(id, key, value) {
+  const record = currentRecord;
+  if (!record) return;
+  const speakerNames = { ...record.speakerNames, [key]: value };
+  const res = await fetch(`/api/recordings/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ speakerNames }),
+  });
+  currentRecord = await res.json();
+  renderTranscript(currentRecord);
+}
+
+// ---------- Transcript ----------
+function renderTranscript(record) {
+  const el = document.getElementById("transcriptView");
+  if (!record.transcript) {
+    el.innerHTML = `<div class="placeholder">Nog geen transcript. Status: ${statusLabel(record.status)}</div>`;
+    return;
+  }
+  el.innerHTML = "";
+  for (const u of record.transcript.utterances) {
+    const row = document.createElement("div");
+    row.className = "utterance";
+    const name = (record.speakerNames && record.speakerNames[u.speaker]) || `Spreker ${u.speaker}`;
+    row.innerHTML = `
+      <div class="u-time">${formatTime(u.start)}</div>
+      <div class="speaker-name">${escapeHtml(name)}</div>
+      <div class="u-text">${escapeHtml(u.text)}</div>
+    `;
+    el.appendChild(row);
+  }
+}
+
+function formatTime(ms) {
+  const totalSec = Math.floor((ms || 0) / 1000);
+  const m = String(Math.floor(totalSec / 60)).padStart(2, "0");
+  const s = String(totalSec % 60).padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+// ---------- Notulen (eenvoudige markdown-weergave) ----------
+function renderMinutes(record) {
+  const el = document.getElementById("minutesView");
+  if (!record.minutes) {
+    el.innerHTML = `<div class="placeholder">Nog geen notulen. Status: ${statusLabel(record.status)}</div>`;
+    return;
+  }
+  el.innerHTML = simpleMarkdownToHtml(record.minutes);
+}
+
+function simpleMarkdownToHtml(md) {
+  const lines = md.split("\n");
+  let html = "";
+  let inList = false;
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) {
+      if (inList) { html += "</ul>"; inList = false; }
+      continue;
+    }
+    if (line.startsWith("# ")) {
+      closeList();
+      html += `<h1>${inline(line.slice(2))}</h1>`;
+    } else if (line.startsWith("## ")) {
+      closeList();
+      html += `<h2>${inline(line.slice(3))}</h2>`;
+    } else if (line.startsWith("### ")) {
+      closeList();
+      html += `<h3>${inline(line.slice(4))}</h3>`;
+    } else if (/^[-*]\s*\[[ xX]\]\s+/.test(line)) {
+      if (!inList) { html += "<ul>"; inList = true; }
+      const checked = /\[[xX]\]/.test(line);
+      const text = line.replace(/^[-*]\s*\[[ xX]\]\s+/, "");
+      html += `<li><input type="checkbox" disabled ${checked ? "checked" : ""}/> ${inline(text)}</li>`;
+    } else if (/^[-*]\s+/.test(line)) {
+      if (!inList) { html += "<ul>"; inList = true; }
+      html += `<li>${inline(line.replace(/^[-*]\s+/, ""))}</li>`;
+    } else {
+      closeList();
+      html += `<p>${inline(line)}</p>`;
+    }
+  }
+  closeList();
+  return html;
+
+  function closeList() {
+    if (inList) { html += "</ul>"; inList = false; }
+  }
+  function inline(text) {
+    return escapeHtml(text)
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>");
+  }
+}
+
+// ---------- Mindmap (radiale SVG-weergave) ----------
+function renderMindmap(record) {
+  const el = document.getElementById("mindmapView");
+  if (!record.mindmap) {
+    el.innerHTML = `<div class="placeholder">Nog geen mindmap. Status: ${statusLabel(record.status)}</div>`;
+    return;
+  }
+  el.innerHTML = "";
+  const svg = buildMindmapSvg(record.mindmap);
+  el.appendChild(svg);
+}
+
+function buildMindmapSvg(root) {
+  const width = 900;
+  const height = 640;
+  const cx = width / 2;
+  const cy = height / 2;
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+  const colors = ["#5b5bf0", "#e07a3f", "#2fa06f", "#c94f7c", "#3f9fc9", "#a05bcf"];
+
+  const nodes = [];
+  const edges = [];
+
+  nodes.push({ x: cx, y: cy, label: root.title || "Vergadering", level: 0, color: "#1d1d2b" });
+
+  const children = root.children || [];
+  const n = Math.max(children.length, 1);
+  const r1 = 190;
+  children.forEach((child, i) => {
+    const angle = (2 * Math.PI * i) / n - Math.PI / 2;
+    const x = cx + r1 * Math.cos(angle);
+    const y = cy + r1 * Math.sin(angle);
+    const color = colors[i % colors.length];
+    nodes.push({ x, y, label: child.title, level: 1, color });
+    edges.push({ x1: cx, y1: cy, x2: x, y2: y, color });
+
+    const grandchildren = child.children || [];
+    const spread = Math.PI / 3.2;
+    const m = grandchildren.length;
+    grandchildren.forEach((gc, j) => {
+      const offset = m > 1 ? -spread / 2 + (spread * j) / (m - 1) : 0;
+      const gAngle = angle + offset;
+      const r2 = r1 + 130;
+      const gx = cx + r2 * Math.cos(gAngle);
+      const gy = cy + r2 * Math.sin(gAngle);
+      nodes.push({ x: gx, y: gy, label: gc.title, level: 2, color });
+      edges.push({ x1: x, y1: y, x2: gx, y2: gy, color });
+    });
+  });
+
+  for (const e of edges) {
+    const line = document.createElementNS(svgNS, "line");
+    line.setAttribute("x1", e.x1);
+    line.setAttribute("y1", e.y1);
+    line.setAttribute("x2", e.x2);
+    line.setAttribute("y2", e.y2);
+    line.setAttribute("stroke", e.color);
+    line.setAttribute("stroke-width", "1.5");
+    line.setAttribute("opacity", "0.5");
+    svg.appendChild(line);
+  }
+
+  for (const node of nodes) {
+    const g = document.createElementNS(svgNS, "g");
+    g.setAttribute("class", "mindmap-node");
+
+    const paddingX = node.level === 0 ? 16 : 10;
+    const fontSize = node.level === 0 ? 15 : node.level === 1 ? 13 : 11.5;
+    const textWidth = Math.min(160, Math.max(40, node.label.length * fontSize * 0.55));
+    const boxW = textWidth + paddingX * 2;
+    const boxH = node.level === 0 ? 40 : 28;
+
+    const rect = document.createElementNS(svgNS, "rect");
+    rect.setAttribute("x", node.x - boxW / 2);
+    rect.setAttribute("y", node.y - boxH / 2);
+    rect.setAttribute("width", boxW);
+    rect.setAttribute("height", boxH);
+    rect.setAttribute("rx", boxH / 2);
+    rect.setAttribute("fill", node.level === 0 ? node.color : "white");
+    rect.setAttribute("stroke", node.color);
+    rect.setAttribute("stroke-width", node.level === 0 ? "0" : "1.5");
+    g.appendChild(rect);
+
+    const text = document.createElementNS(svgNS, "text");
+    text.setAttribute("x", node.x);
+    text.setAttribute("y", node.y + 4);
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("font-size", fontSize);
+    text.setAttribute("font-weight", node.level === 0 ? "700" : node.level === 1 ? "600" : "400");
+    text.setAttribute("fill", node.level === 0 ? "white" : "#1d1d2b");
+    text.textContent = truncate(node.label, node.level === 0 ? 30 : 26);
+    g.appendChild(text);
+
+    svg.appendChild(g);
+  }
+
+  return svg;
+}
+
+function truncate(str, max) {
+  if (!str) return "";
+  return str.length > max ? str.slice(0, max - 1) + "…" : str;
+}
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// ---------- Stemprofielen ----------
+let profileFfmpegAvailable = true;
+let profileMediaRecorder = null;
+let profileChunks = [];
+
+const profileList = document.getElementById("profileList");
+const profilesHint = document.getElementById("profilesHint");
+const profileNameInput = document.getElementById("profileNameInput");
+const profileRecordBtn = document.getElementById("profileRecordBtn");
+const profileFileInput = document.getElementById("profileFileInput");
+const profileRecordStatus = document.getElementById("profileRecordStatus");
