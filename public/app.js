@@ -226,6 +226,9 @@ deleteBtn.addEventListener("click", async () => {
   refreshList();
 });
 
+document.getElementById("backToListBtn").addEventListener("click", () => {
+  document.getElementById("app").classList.remove("mobile-detail");
+});
 regenerateBtn.addEventListener("click", async () => {
   if (!currentRecord) return;
   const minutesLanguage = document.getElementById("minutesLangRegenSelect").value;
