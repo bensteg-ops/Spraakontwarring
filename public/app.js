@@ -23,6 +23,12 @@ recordBtn.addEventListener("click", async () => {
     mediaRecorder.stop();
     return;
   }
+      const akkoord = confirm(
+      "Bevestig toestemming:\n\n" +
+      "“Ik neem dit gesprek op zodat ik automatisch een verslag kan maken — vind je dat goed?”\n\n" +
+      "Klik op OK als de deelnemer(s) akkoord zijn gegaan."
+    );
+    if (!akkoord) return;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recordedChunks = [];
