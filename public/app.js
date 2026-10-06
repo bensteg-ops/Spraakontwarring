@@ -98,7 +98,43 @@ async function refreshList() {
   renderList();
 }
 
+function renderList() {
+  const listEl = document.getElementById("recordingList");
+  listEl.innerHTML = "";
+  for (const r of state.recordings) {
+    const li = document.createElement("li");
+    li.className = "recording-item" + (r.id === state.currentId ? " active" : "");
+    li.innerHTML = `
+      <div class="r-main">
+        <div class="r-title">${escapeHtml(r.title)}</div>
+        <div class="r-meta">
+          <span>${new Date(r.createdAt).toLocaleString("nl-NL")}</span>
+          <span>${statusLabel(r.status)}</span>
+        </div>
+      </div>
+      <button class="r-delete" title="Opname verwijderen">🗑️</button>
+    `;
+    li.addEventListener("click", () => selectRecording(r.id));
+    li.querySelector(".r-delete").addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteRecordingFromList(r.id, r.title);
+    });
+    listEl.appendChild(li);
+  }
+}
 
+async function deleteRecordingFromList(id, title) {
+  if (!confirm(`Opname "${title}" verwijderen?`)) return;
+  await fetch(`/api/recordings/${id}`, { method: "DELETE" });
+  if (state.currentId === id) {
+    currentRecord = null;
+    state.currentId = null;
+    detailEl.classList.add("hidden");
+    emptyState.classList.remove("hidden");
+    document.getElementById("app").classList.remove("mobile-detail");
+  }
+  refreshList();
+}
 function statusLabel(status) {
   const base = (status || "").split(":")[0];
   const map = {
