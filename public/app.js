@@ -98,23 +98,6 @@ async function refreshList() {
   renderList();
 }
 
-function renderList() {
-  const listEl = document.getElementById("recordingList");
-  listEl.innerHTML = "";
-  for (const r of state.recordings) {
-    const li = document.createElement("li");
-    li.className = "recording-item" + (r.id === state.currentId ? " active" : "");
-    li.innerHTML = `
-      <div class="r-title">${escapeHtml(r.title)}</div>
-      <div class="r-meta">
-        <span>${new Date(r.createdAt).toLocaleString("nl-NL")}</span>
-        <span>${statusLabel(r.status)}</span>
-      </div>
-    `;
-    li.addEventListener("click", () => selectRecording(r.id));
-    listEl.appendChild(li);
-  }
-}
 
 function statusLabel(status) {
   const base = (status || "").split(":")[0];
