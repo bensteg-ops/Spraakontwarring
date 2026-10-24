@@ -62,6 +62,7 @@ app.get("/api/health", (req, res) => {
     assemblyaiConfigured: Boolean(process.env.ASSEMBLYAI_API_KEY),
     anthropicConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
     voiceProfilesAvailable: ffmpegAvailable(),
+    externalConfigured: Boolean(process.env.EXTERNAL_API_KEY),
   });
 });
 
@@ -123,6 +124,105 @@ app.get("/api/auth/me", requireAuth, async (req, res, next) => {
     const user = await findUserById(req.userId);
     if (!user) return res.status(401).json({ error: "Niet ingelogd." });
     res.json({ id: user.id, email: user.email, name: user.name });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---- Externe koppeling (Baanbreker) ----
+// Baanbreker praat met deze server via een eigen API-sleutel (header x-api-key),
+// ingesteld als EXTERNAL_API_KEY in .env / de omgevingsvariabelen. Opnames van de
+// koppeling horen bij een vaste interne gebruiker en zijn niet zichtbaar voor
+// gewone accounts. Er wordt geen cliëntnaam opgeslagen, alleen een neutrale referentie.
+const EXTERNAL_USER_ID = "baanbreker-extern";
+
+function requireApiKey(req, res, next) {
+  const expected = process.env.EXTERNAL_API_KEY || "";
+  if (expected.length < 16) {
+    return res.status(503).json({ error: "Externe koppeling is niet ingesteld (EXTERNAL_API_KEY ontbreekt of is korter dan 16 tekens)." });
+  }
+  const given = Buffer.from(String(req.get("x-api-key") || ""));
+  const want = Buffer.from(expected);
+  if (given.length !== want.length || !crypto.timingSafeEqual(given, want)) {
+    return res.status(401).json({ error: "Ongeldige API-sleutel." });
+  }
+  next();
+}
+
+app.get("/api/external/ping", requireApiKey, (req, res) => {
+  res.json({ ok: true, assemblyaiConfigured: Boolean(process.env.ASSEMBLYAI_API_KEY) });
+});
+
+app.post("/api/external/recordings", requireApiKey, upload.single("audio"), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Geen audiobestand ontvangen (veld 'audio')." });
+    }
+    const id = nanoid(12);
+    const ext = guessExtension(req.file.mimetype, req.file.originalname);
+    const fileName = `${id}${ext}`;
+    await fs.mkdir(AUDIO_DIR, { recursive: true });
+    await fs.writeFile(path.join(AUDIO_DIR, fileName), req.file.buffer);
+
+    const language = req.body.language === "auto" ? null : req.body.language || "nl";
+    const record = {
+      id,
+      userId: EXTERNAL_USER_ID,
+      title: `Koppeling ${defaultTitle()}`,
+      createdAt: new Date().toISOString(),
+      status: "uploading",
+      audioFile: fileName,
+      mimeType: req.file.mimetype,
+      language,
+      minutesLanguage: "auto",
+      transcript: null,
+      speakerNames: {},
+      minutes: null,
+      mindmap: null,
+      error: null,
+      externalRef: String(req.body.clientRef || "").slice(0, 64),
+    };
+    await createRecording(record);
+    res.status(201).json({ id, status: record.status });
+
+    // Alleen transcriberen: het verslag wordt in Baanbreker gemaakt (met dossiercontext).
+    processRecording(id, EXTERNAL_USER_ID, req.file.buffer, language, fileName, { skipGeneration: true }).catch((err) => {
+      console.error(`Verwerking van externe opname ${id} mislukt:`, err);
+      updateRecordingInternal(id, { status: "error", error: err.message }).catch(() => {});
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/api/external/recordings/:id", requireApiKey, async (req, res, next) => {
+  try {
+    const rec = await getRecordingInternal(req.params.id);
+    if (!rec || rec.userId !== EXTERNAL_USER_ID) return res.status(404).json({ error: "Opname niet gevonden" });
+    res.json({
+      id: rec.id,
+      status: rec.status,
+      error: rec.error || null,
+      durationSec: rec.transcript ? rec.transcript.audioDurationSec || null : null,
+      transcript: rec.transcript
+        ? { text: rec.transcript.text, utterances: rec.transcript.utterances, languageCode: rec.transcript.languageCode }
+        : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Verwijdert de opname inclusief het audiobestand.
+app.delete("/api/external/recordings/:id", requireApiKey, async (req, res, next) => {
+  try {
+    const rec = await getRecordingInternal(req.params.id);
+    if (!rec || rec.userId !== EXTERNAL_USER_ID) return res.status(404).json({ error: "Opname niet gevonden" });
+    if (rec.audioFile) {
+      await fs.unlink(path.join(AUDIO_DIR, path.basename(rec.audioFile))).catch(() => {});
+    }
+    await deleteRecording(rec.id, EXTERNAL_USER_ID);
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }
@@ -396,7 +496,7 @@ async function ensureSessionSecret() {
 
 // ---- Achtergrondverwerking ----
 
-async function processRecording(id, userId, buffer, language, fileName) {
+async function processRecording(id, userId, buffer, language, fileName, options = {}) {
   await updateRecordingInternal(id, { status: "uploading" });
   const uploadUrl = await uploadAudio(buffer);
 
@@ -430,6 +530,11 @@ async function processRecording(id, userId, buffer, language, fileName) {
     },
     speakerNames,
   });
+
+  if (options.skipGeneration) {
+    await updateRecordingInternal(id, { status: "done", error: null });
+    return;
+  }
 
   await runGeneration(id);
 }
