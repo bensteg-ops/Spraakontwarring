@@ -44,9 +44,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   font-size: 12px;
   color: var(--muted);
   margin-bottom: 16px;
+}
+
+.ui-lang-select {
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 6px;
 }
 
 .logout-btn {
