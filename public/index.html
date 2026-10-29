@@ -10,24 +10,24 @@
 <div id="authScreen" class="auth-screen hidden">
   <div class="auth-card">
     <h1>🎙️ Spraakontwarring</h1>
-    <p class="auth-subtitle">Log in of maak een gratis account aan. Je opnames zijn privé — alleen jij ziet ze.</p>
+    <p class="auth-subtitle" data-i18n="authSubtitle">Log in of maak een gratis account aan. Je opnames zijn privé — alleen jij ziet ze.</p>
 
     <div class="auth-tabs">
-      <button id="authTabLogin" class="auth-tab active">Inloggen</button>
-      <button id="authTabRegister" class="auth-tab">Account aanmaken</button>
+      <button id="authTabLogin" class="auth-tab active" data-i18n="tabLogin">Inloggen</button>
+      <button id="authTabRegister" class="auth-tab" data-i18n="tabRegister">Account aanmaken</button>
     </div>
 
     <form id="loginForm" class="auth-form">
-      <input id="loginEmail" type="email" placeholder="E-mailadres" required autocomplete="username" />
-      <input id="loginPassword" type="password" placeholder="Wachtwoord" required autocomplete="current-password" />
-      <button type="submit" class="auth-submit">Inloggen</button>
+      <input id="loginEmail" type="email" data-i18n-placeholder="loginEmailPh" placeholder="E-mailadres" required autocomplete="username" />
+      <input id="loginPassword" type="password" data-i18n-placeholder="loginPasswordPh" placeholder="Wachtwoord" required autocomplete="current-password" />
+      <button type="submit" class="auth-submit" data-i18n="loginSubmit">Inloggen</button>
     </form>
 
     <form id="registerForm" class="auth-form hidden">
-      <input id="registerName" type="text" placeholder="Je naam (optioneel)" autocomplete="name" />
-      <input id="registerEmail" type="email" placeholder="E-mailadres" required autocomplete="username" />
-      <input id="registerPassword" type="password" placeholder="Wachtwoord (minstens 8 tekens)" required autocomplete="new-password" />
-      <button type="submit" class="auth-submit">Account aanmaken</button>
+      <input id="registerName" type="text" data-i18n-placeholder="registerNamePh" placeholder="Je naam (optioneel)" autocomplete="name" />
+      <input id="registerEmail" type="email" data-i18n-placeholder="registerEmailPh" placeholder="E-mailadres" required autocomplete="username" />
+      <input id="registerPassword" type="password" data-i18n-placeholder="registerPasswordPh" placeholder="Wachtwoord (minstens 8 tekens)" required autocomplete="new-password" />
+      <button type="submit" class="auth-submit" data-i18n="registerSubmit">Account aanmaken</button>
     </form>
 
     <div id="authError" class="auth-error"></div>
@@ -39,52 +39,57 @@
     <div class="sidebar-header">
       <h1>🎙️ Spraakontwarring</h1>
       <div class="user-bar">
+        <select id="uiLangSelect" class="ui-lang-select" data-i18n-title="uiLangTitle" title="Taal van de app">
+          <option value="nl">🇳🇱 Nederlands</option>
+          <option value="en">🇬🇧 English</option>
+          <option value="de">🇩🇪 Deutsch</option>
+        </select>
         <span id="userNameLabel"></span>
-        <button id="logoutBtn" class="logout-btn">Uitloggen</button>
+        <button id="logoutBtn" class="logout-btn" data-i18n="logout">Uitloggen</button>
       </div>
     </div>
 
     <div class="record-box">
       <button id="recordBtn" class="record-btn">
         <span class="dot"></span>
-        <span id="recordLabel">Opname starten</span>
+        <span id="recordLabel" data-i18n="recordStart">Opname starten</span>
       </button>
       <div id="timer" class="timer">00:00</div>
 
       <div class="or-divider"><span>of</span></div>
 
       <label class="upload-label">
-        📁 Bestand uploaden
+        <span data-i18n="uploadLabel">📁 Bestand uploaden</span>
         <input id="fileInput" type="file" accept="audio/*,video/*" hidden />
       </label>
 
       <div class="new-meta">
-        <input id="titleInput" type="text" placeholder="Titel van vergadering (optioneel)" />
-        <select id="langSelect" title="Taal van het gesprek (voor transcriptie)">
-          <option value="nl">Nederlands (gesprek)</option>
-          <option value="en">Engels (gesprek)</option>
-          <option value="auto">Taal automatisch detecteren</option>
+        <input id="titleInput" type="text" data-i18n-placeholder="titlePh" placeholder="Titel van vergadering (optioneel)" />
+        <select id="langSelect" data-i18n-title="langSelectTitle" title="Taal van het gesprek (voor transcriptie)">
+          <option value="nl" data-i18n="langConvNl">Nederlands (gesprek)</option>
+          <option value="en" data-i18n="langConvEn">Engels (gesprek)</option>
+          <option value="auto" data-i18n="langConvAuto">Taal automatisch detecteren</option>
         </select>
-        <select id="minutesLangSelect" title="Taal van de notulen">
-          <option value="auto">Notulen: zelfde taal als gesprek</option>
-          <option value="nl">Notulen: altijd Nederlands</option>
-          <option value="en">Notulen: altijd Engels</option>
+        <select id="minutesLangSelect" data-i18n-title="minutesLangSelectTitle" title="Taal van de notulen">
+          <option value="auto" data-i18n="minutesLangAuto">Notulen: zelfde taal als gesprek</option>
+          <option value="nl" data-i18n="minutesLangNl">Notulen: altijd Nederlands</option>
+          <option value="en" data-i18n="minutesLangEn">Notulen: altijd Engels</option>
         </select>
       </div>
     </div>
 
     <div class="profiles-box">
       <div class="profiles-header">
-        <strong>🗣️ Stemprofielen</strong>
+        <strong data-i18n="speakerProfilesTitle">🗣️ Stemprofielen</strong>
         <span id="profilesHint" class="hint"></span>
       </div>
       <ul id="profileList" class="profile-list"></ul>
       <div class="profile-add">
-        <input id="profileNameInput" type="text" placeholder="Naam van de spreker" />
+        <input id="profileNameInput" type="text" data-i18n-placeholder="speakerNamePh" placeholder="Naam van de spreker" />
         <div class="profile-add-buttons">
-          <button id="profileRecordBtn" class="mini-btn">🎙️ Opnemen</button>
+          <button id="profileRecordBtn" class="mini-btn" data-i18n="profileRecord">🎙️ Opnemen</button>
           <label class="mini-btn upload-mini">
-            📁 Upload
+            <span data-i18n="profileUpload">📁 Upload</span>
             <input id="profileFileInput" type="file" accept="audio/*" hidden />
           </label>
         </div>
@@ -92,29 +97,29 @@
       </div>
     </div>
 
-    <div class="list-header">Eerdere opnames</div>
+    <div class="list-header" data-i18n="recordingListHeader">Eerdere opnames</div>
     <ul id="recordingList" class="recording-list"></ul>
   </aside>
 
   <main class="content">
     <div id="emptyState" class="empty-state">
-      <p>Selecteer een opname of start een nieuwe opname links.</p>
+      <p data-i18n="emptyStateText">Selecteer een opname of start een nieuwe opname links.</p>
     </div>
 
     <div id="detail" class="detail hidden">
       <header class="detail-header">
-       <button id="backToListBtn" class="icon-btn back-btn" title="Terug naar opnames">← Terug</button>
+       <button id="backToListBtn" class="icon-btn back-btn" data-i18n-title="backToListTitle" title="Terug naar opnames"><span data-i18n="backToList">← Terug</span></button>
         <input id="detailTitle" class="detail-title-input" />
         <span id="statusBadge" class="status-badge"></span>
-        <button id="deleteBtn" class="icon-btn" title="Opname verwijderen">🗑️</button>
+        <button id="deleteBtn" class="icon-btn" data-i18n-title="deleteRecordingTitle" title="Opname verwijderen">🗑️</button>
       </header>
 
       <audio id="player" controls class="player"></audio>
 
       <nav class="tabs">
-        <button class="tab-btn active" data-tab="transcript">Transcript</button>
-        <button class="tab-btn" data-tab="minutes">Notulen</button>
-        <button class="tab-btn" data-tab="mindmap">Mindmap</button>
+        <button class="tab-btn active" data-tab="transcript" data-i18n="tabTranscript">Transcript</button>
+        <button class="tab-btn" data-tab="minutes" data-i18n="tabMinutes">Notulen</button>
+        <button class="tab-btn" data-tab="mindmap" data-i18n="tabMindmap">Mindmap</button>
       </nav>
 
       <section id="tab-transcript" class="tab-panel active">
@@ -124,22 +129,22 @@
 
       <section id="tab-minutes" class="tab-panel">
         <div class="panel-toolbar">
-          <select id="minutesLangRegenSelect" title="Taal van de notulen bij opnieuw genereren">
-            <option value="auto">Notulen: zelfde taal als gesprek</option>
-            <option value="nl">Notulen: altijd Nederlands</option>
-            <option value="en">Notulen: altijd Engels</option>
+          <select id="minutesLangRegenSelect" data-i18n-title="minutesLangSelectTitle" title="Taal van de notulen bij opnieuw genereren">
+            <option value="auto" data-i18n="minutesLangAuto">Notulen: zelfde taal als gesprek</option>
+            <option value="nl" data-i18n="minutesLangNl">Notulen: altijd Nederlands</option>
+            <option value="en" data-i18n="minutesLangEn">Notulen: altijd Engels</option>
           </select>
-          <button id="regenerateBtn" class="secondary-btn">🔄 Opnieuw genereren</button>
-          <button id="copyMinutesBtn" class="secondary-btn">📋 Kopiëren</button>
-          <button id="exportDocxBtn" class="secondary-btn">⬇️ Word</button>
-          <button id="exportPdfBtn" class="secondary-btn">⬇️ PDF</button>
+          <button id="regenerateBtn" class="secondary-btn" data-i18n="regenerate">🔄 Opnieuw genereren</button>
+          <button id="copyMinutesBtn" class="secondary-btn" data-i18n="copy">📋 Kopiëren</button>
+          <button id="exportDocxBtn" class="secondary-btn" data-i18n="exportWord">⬇️ Word</button>
+          <button id="exportPdfBtn" class="secondary-btn" data-i18n="exportPdf">⬇️ PDF</button>
         </div>
         <div id="minutesView" class="minutes-view"></div>
       </section>
 
       <section id="tab-mindmap" class="tab-panel">
         <div class="panel-toolbar">
-          <button id="downloadMindmapBtn" class="secondary-btn">⬇️ SVG downloaden</button>
+          <button id="downloadMindmapBtn" class="secondary-btn" data-i18n="downloadSvg">⬇️ SVG downloaden</button>
         </div>
         <div id="mindmapView" class="mindmap-view"></div>
       </section>
@@ -147,6 +152,7 @@
   </main>
 </div>
 
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
