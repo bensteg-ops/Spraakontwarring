@@ -546,9 +546,10 @@ async function runGeneration(id) {
   await updateRecordingInternal(id, { status: "generating" });
 
   const minutesLanguage = recording.minutesLanguage || "auto";
+    const detectedLanguageCode = recording.transcript.languageCode || null;
   const [minutes, mindmap] = await Promise.all([
-    generateMinutes(recording.transcript.utterances, recording.speakerNames, recording.title, minutesLanguage),
-    generateMindmap(recording.transcript.utterances, recording.speakerNames, recording.title, minutesLanguage),
+    generateMinutes(recording.transcript.utterances, recording.speakerNames, recording.title, minutesLanguage, detectedLanguageCode),
+    generateMindmap(recording.transcript.utterances, recording.speakerNames, recording.title, minutesLanguage, detectedLanguageCode),
   ]);
 
   await updateRecordingInternal(id, { status: "done", minutes, mindmap, error: null });
