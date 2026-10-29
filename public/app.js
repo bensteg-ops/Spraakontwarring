@@ -23,11 +23,7 @@ recordBtn.addEventListener("click", async () => {
     mediaRecorder.stop();
     return;
   }
-      const akkoord = confirm(
-      "Bevestig toestemming:\n\n" +
-      "“Ik neem dit gesprek op zodat ik automatisch een verslag kan maken — vind je dat goed?”\n\n" +
-      "Klik op OK als de deelnemer(s) akkoord zijn gegaan."
-    );
+      const akkoord = confirm(T.consentText);
     if (!akkoord) return;
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -41,7 +37,7 @@ recordBtn.addEventListener("click", async () => {
       clearInterval(timerInterval);
       timerEl.textContent = "00:00";
       recordBtn.classList.remove("recording");
-      recordLabel.textContent = "Opname starten";
+      recordLabel.textContent = T.recordStart;
       const blob = new Blob(recordedChunks, { type: "audio/webm" });
       uploadRecording(blob, "opname.webm");
     };
@@ -49,9 +45,9 @@ recordBtn.addEventListener("click", async () => {
     recordStartTime = Date.now();
     timerInterval = setInterval(updateTimer, 1000);
     recordBtn.classList.add("recording");
-    recordLabel.textContent = "Stop opname";
+    recordLabel.textContent = T.recordStop;
   } catch (err) {
-    alert("Kon microfoon niet gebruiken: " + err.message);
+    alert(T.micError + err.message);
   }
 });
 
@@ -79,14 +75,14 @@ async function uploadRecording(blob, filename) {
     const res = await fetch("/api/recordings", { method: "POST", body: form });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Upload mislukt");
+      throw new Error(err.error || T.uploadFailed);
     }
     const record = await res.json();
     titleInput.value = "";
     await refreshList();
     selectRecording(record.id);
   } catch (err) {
-    alert("Er ging iets mis bij het uploaden: " + err.message);
+    alert(T.uploadError + err.message);
   }
 }
 
@@ -108,11 +104,11 @@ function renderList() {
       <div class="r-main">
         <div class="r-title">${escapeHtml(r.title)}</div>
         <div class="r-meta">
-          <span>${new Date(r.createdAt).toLocaleString("nl-NL")}</span>
+          <span>${new Date(r.createdAt).toLocaleString(T.locale)}</span>
           <span>${statusLabel(r.status)}</span>
         </div>
       </div>
-      <button class="r-delete" title="Opname verwijderen">🗑️</button>
+      <button class="r-delete" title="${T.deleteRecordingTitle}">🗑️</button>
     `;
     li.addEventListener("click", () => selectRecording(r.id));
     li.querySelector(".r-delete").addEventListener("click", (e) => {
@@ -124,7 +120,7 @@ function renderList() {
 }
 
 async function deleteRecordingFromList(id, title) {
-  if (!confirm(`Opname "${title}" verwijderen?`)) return;
+  if (!confirm(T.deleteConfirm(title))) return;
   await fetch(`/api/recordings/${id}`, { method: "DELETE" });
   if (state.currentId === id) {
     currentRecord = null;
@@ -138,12 +134,12 @@ async function deleteRecordingFromList(id, title) {
 function statusLabel(status) {
   const base = (status || "").split(":")[0];
   const map = {
-    uploading: "Uploaden…",
-    transcribing: "Transcriberen…",
-    transcribed: "Transcript klaar",
-    generating: "Notulen maken…",
-    done: "Klaar",
-    error: "Fout",
+    uploading: T.statusUploading,
+    transcribing: T.statusTranscribing,
+    transcribed: T.statusTranscribed,
+    generating: T.statusGenerating,
+    done: T.statusDone,
+    error: T.statusError,
   };
   return map[base] || status;
 }
@@ -241,7 +237,7 @@ detailTitle.addEventListener("change", async () => {
 
 deleteBtn.addEventListener("click", async () => {
   if (!currentRecord) return;
-  if (!confirm(`Opname "${currentRecord.title}" verwijderen?`)) return;
+  if (!confirm(T.deleteConfirm(currentRecord.title))) return;
   await fetch(`/api/recordings/${currentRecord.id}`, { method: "DELETE" });
   currentRecord = null;
   state.currentId = null;
@@ -273,8 +269,8 @@ regenerateBtn.addEventListener("click", async () => {
 copyMinutesBtn.addEventListener("click", async () => {
   if (!currentRecord || !currentRecord.minutes) return;
   await navigator.clipboard.writeText(currentRecord.minutes);
-  copyMinutesBtn.textContent = "✅ Gekopieerd";
-  setTimeout(() => (copyMinutesBtn.textContent = "📋 Kopiëren"), 1500);
+  copyMinutesBtn.textContent = T.copied;
+  setTimeout(() => (copyMinutesBtn.textContent = T.copy), 1500);
 });
 
 document.getElementById("exportDocxBtn").addEventListener("click", () => {
@@ -352,14 +348,14 @@ async function saveSpeakerName(id, key, value) {
 function renderTranscript(record) {
   const el = document.getElementById("transcriptView");
   if (!record.transcript) {
-    el.innerHTML = `<div class="placeholder">Nog geen transcript. Status: ${statusLabel(record.status)}</div>`;
+    el.innerHTML = `<div class="placeholder">${T.noTranscript} ${statusLabel(record.status)}</div>`;
     return;
   }
   el.innerHTML = "";
   for (const u of record.transcript.utterances) {
     const row = document.createElement("div");
     row.className = "utterance";
-    const name = (record.speakerNames && record.speakerNames[u.speaker]) || `Spreker ${u.speaker}`;
+    const name = (record.speakerNames && record.speakerNames[u.speaker]) || `${T.speakerPrefix} ${u.speaker}`;
     row.innerHTML = `
       <div class="u-time">${formatTime(u.start)}</div>
       <div class="speaker-name">${escapeHtml(name)}</div>
@@ -380,13 +376,11 @@ function formatTime(ms) {
 function renderMinutes(record) {
   const el = document.getElementById("minutesView");
   if (!record.minutes) {
-    el.innerHTML = `<div class="placeholder">Nog geen notulen. Status: ${statusLabel(record.status)}</div>`;
+    el.innerHTML = `<div class="placeholder">${T.noMinutes} ${statusLabel(record.status)}</div>`;
     return;
   }
   el.innerHTML = simpleMarkdownToHtml(record.minutes);
-}
-
-function simpleMarkdownToHtml(md) {
+}function simpleMarkdownToHtml(md) {
   const lines = md.split("\n");
   let html = "";
   let inList = false;
@@ -435,7 +429,7 @@ function simpleMarkdownToHtml(md) {
 function renderMindmap(record) {
   const el = document.getElementById("mindmapView");
   if (!record.mindmap) {
-    el.innerHTML = `<div class="placeholder">Nog geen mindmap. Status: ${statusLabel(record.status)}</div>`;
+    el.innerHTML = `<div class="placeholder">${T.noMindmap} ${statusLabel(record.status)}</div>`;
     return;
   }
   el.innerHTML = "";
@@ -460,7 +454,7 @@ function buildMindmapSvg(root) {
   const nodes = [];
   const edges = [];
 
-  nodes.push({ x: cx, y: cy, label: root.title || "Vergadering", level: 0, color: "#1d1d2b" });
+  nodes.push({ x: cx, y: cy, label: root.title || T.meetingDefault, level: 0, color: "#1d1d2b" });
 
   const children = root.children || [];
   const n = Math.max(children.length, 1);
@@ -568,14 +562,14 @@ async function loadProfiles() {
     profileFfmpegAvailable = data.ffmpegAvailable;
     renderProfiles(data.profiles);
     if (!profileFfmpegAvailable) {
-      profilesHint.textContent = "ffmpeg ontbreekt op de server";
+      profilesHint.textContent = T.ffmpegMissing;
       profileRecordBtn.disabled = true;
       profileFileInput.disabled = true;
     } else {
       profilesHint.textContent = "";
     }
   } catch (err) {
-    profilesHint.textContent = "Kon profielen niet laden";
+    profilesHint.textContent = T.loadProfilesFailed;
   }
 }
 
@@ -584,7 +578,7 @@ function renderProfiles(profiles) {
   if (!profiles.length) {
     const li = document.createElement("li");
     li.className = "p-empty";
-    li.textContent = "Nog geen stemprofielen. Neem een stem van ~15 sec op om iemand automatisch te laten herkennen.";
+    li.textContent = T.noProfilesYet;
     li.style.border = "none";
     li.style.background = "transparent";
     profileList.appendChild(li);
@@ -597,7 +591,7 @@ function renderProfiles(profiles) {
     const del = document.createElement("button");
     del.className = "p-delete";
     del.textContent = "✕";
-    del.title = "Profiel verwijderen";
+    del.title = T.deleteProfileTitle;
     del.addEventListener("click", () => deleteProfile(p.id));
     li.appendChild(span);
     li.appendChild(del);
@@ -618,7 +612,7 @@ profileRecordBtn.addEventListener("click", async () => {
   }
   const name = profileNameInput.value.trim();
   if (!name) {
-    alert("Vul eerst een naam in voor deze spreker.");
+    alert(T.nameRequired);
     return;
   }
   try {
@@ -631,17 +625,17 @@ profileRecordBtn.addEventListener("click", async () => {
     profileMediaRecorder.onstop = async () => {
       stream.getTracks().forEach((t) => t.stop());
       profileRecordBtn.classList.remove("recording");
-      profileRecordBtn.textContent = "🎙️ Opnemen";
-      profileRecordStatus.textContent = "Verwerken…";
+      profileRecordBtn.textContent = T.profileRecord;
+      profileRecordStatus.textContent = T.profileProcessing;
       const blob = new Blob(profileChunks, { type: "audio/webm" });
       await uploadProfile(name, blob, "stemprofiel.webm");
     };
     profileMediaRecorder.start();
     profileRecordBtn.classList.add("recording");
-    profileRecordBtn.textContent = "⏹ Stop";
-    profileRecordStatus.textContent = "Aan het opnemen — laat de persoon ~15-20 sec spreken, klik dan op stop.";
+    profileRecordBtn.textContent = T.profileStop;
+    profileRecordStatus.textContent = T.profileRecordingStatus;
   } catch (err) {
-    alert("Kon microfoon niet gebruiken: " + err.message);
+    alert(T.micError + err.message);
   }
 });
 
@@ -650,11 +644,11 @@ profileFileInput.addEventListener("change", async () => {
   if (!file) return;
   const name = profileNameInput.value.trim();
   if (!name) {
-    alert("Vul eerst een naam in voor deze spreker.");
+    alert(T.nameRequired);
     profileFileInput.value = "";
     return;
   }
-  profileRecordStatus.textContent = "Verwerken…";
+  profileRecordStatus.textContent = T.profileProcessing;
   await uploadProfile(name, file, file.name);
   profileFileInput.value = "";
 });
@@ -666,14 +660,14 @@ async function uploadProfile(name, blob, filename) {
   try {
     const res = await fetch("/api/speaker-profiles", { method: "POST", body: form });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Opslaan van stemprofiel mislukt");
+    if (!res.ok) throw new Error(data.error || T.profileSaveFailed);
     profileNameInput.value = "";
-    profileRecordStatus.textContent = `Stemprofiel "${data.name}" opgeslagen.`;
+    profileRecordStatus.textContent = T.profileSaved(data.name);
     setTimeout(() => (profileRecordStatus.textContent = ""), 3000);
     loadProfiles();
   } catch (err) {
     profileRecordStatus.textContent = "";
-    alert("Kon stemprofiel niet opslaan: " + err.message);
+    alert(T.profileSaveError + err.message);
   }
 }
 
@@ -712,7 +706,7 @@ loginForm.addEventListener("submit", async (e) => {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Inloggen mislukt");
+    if (!res.ok) throw new Error(data.error || T.loginFailed);
     onAuthenticated(data);
   } catch (err) {
     authError.textContent = err.message;
@@ -732,7 +726,7 @@ registerForm.addEventListener("submit", async (e) => {
       body: JSON.stringify({ name, email, password }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Account aanmaken mislukt");
+    if (!res.ok) throw new Error(data.error || T.registerFailed);
     onAuthenticated(data);
   } catch (err) {
     authError.textContent = err.message;
@@ -763,6 +757,13 @@ function showAuthScreen() {
   registerForm.reset();
   switchAuthTab("login");
 }
+
+// ---------- Taalwissel: dynamische teksten opnieuw tekenen ----------
+window.onLanguageChange = () => {
+  renderList();
+  if (currentRecord) renderDetail(currentRecord);
+  if (!appEl.classList.contains("hidden")) loadProfiles();
+};
 
 // ---------- Init ----------
 (async function init() {
